@@ -5,7 +5,7 @@ const router = Router();
 
 router.post('/', async (req, res) => {
   try {
-    const { issueDescription, components, selectedId, errorContext } = req.body;
+    const { issueDescription, components, selectedId, errorContext, model } = req.body;
     if (!issueDescription || typeof issueDescription !== 'string') {
       return res.status(400).json({ success: false, error: 'Issue description is required' });
     }
@@ -13,11 +13,15 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Components tree is required' });
     }
 
+    const apiKeyOverride = req.headers['x-api-key'] || null;
+
     const diagnosis = await gemmaService.diagnoseIssue({
       issueDescription,
       components,
       selectedId,
-      errorContext
+      errorContext,
+      model,
+      apiKeyOverride
     });
 
     res.json(diagnosis);

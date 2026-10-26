@@ -5,7 +5,7 @@ const router = Router();
 
 router.post('/', async (req, res) => {
   try {
-    const { prompt, components, palette, selectedId } = req.body;
+    const { prompt, components, palette, selectedId, model } = req.body;
     if (!prompt || typeof prompt !== 'string') {
       return res.status(400).json({ success: false, error: 'A non-empty prompt is required for refinement' });
     }
@@ -13,11 +13,16 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Components array is required' });
     }
 
+    // Accept optional per-request API key override from client settings
+    const apiKeyOverride = req.headers['x-api-key'] || null;
+
     const result = await gemmaService.refineDesign({
       prompt,
       components,
       palette,
-      selectedId
+      selectedId,
+      model,
+      apiKeyOverride
     });
 
     res.json(result);

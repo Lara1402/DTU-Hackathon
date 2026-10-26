@@ -1,40 +1,88 @@
-# MoodUI Studio
+# MoodUI Studio 🎨
 
-> **Imagine. Build. Refine. Debug.**
-> An AI-powered UI creation, visual customization, and debugging workspace for developers and designers.
+> **Imagine. Build. Refine. Debug.**  
+> An AI-powered UI generation, visual customization, and debugging workspace built for the DTU Hackathon 2026.
 
-MoodUI Studio is an interactive developer tool that transforms ideas into working, responsive, production-ready interfaces. It unifies multimodal generation (text, voice, image references, mood boards), direct direct-manipulation visual editing, automated diagnostics, surgical AI bug repairs with code diffs, and dual export (standalone HTML/CSS and runnable React + Vite project bundles).
-
----
-
-## 🚀 Complete Workflow
-
-```
-Imagine ──► Design ──► Generate ──► Preview ──► Customize ──► Debug ──► Repair ──► Export
-```
-
-1. **Imagine & Prompt:** Describe your interface using natural language, speak via microphone (Web Speech API), attach reference screenshots, or assemble an inspiration mood board.
-2. **Generate:** Google Gemma 4 synthesizes a validated, structured component schema (AST) that renders immediately.
-3. **Preview:** Toggle between Desktop (1200px), Tablet (768px), and Mobile (375px) device viewports with zoom controls (50% to 150%).
-4. **Customize Without AI:** Switch between 12 curated color palettes or customize theme tokens (primary, secondary, accent, surface, background, text, border, radius) with instant CSS variable reactivity. Click any element on the canvas to directly edit text, font sizes, alignments, padding, images, and button targets.
-5. **Debug & Diagnose:** Run an automated 8-point diagnostic suite (mobile viewport overflow, WCAG contrast ratios, accessible button labels, image alt text, form validation, broken links) or describe bugs in natural language.
-6. **Repair with Diffs:** Inspect AI-proposed surgical modifications with before/after diffs. Accept the fix with 1 click, reject it, or undo anytime.
-7. **Export:** Download a self-contained standalone `index.html` file or a complete, runnable React + Vite project `.zip` bundle.
+MoodUI Studio transforms natural language prompts into working, responsive, production-ready web interfaces. It combines AI design generation (via Google Gemini), direct visual editing, automated diagnostics, surgical AI bug repair, secure user authentication with per-user project isolation, and one-click export.
 
 ---
 
-## 🛠️ Architecture & Stack
+## 📸 Features at a Glance
 
-- **Frontend:** React 18, Vite 5, Vanilla CSS with custom reactive design tokens, Lucide icons, Google Fonts (`Plus Jakarta Sans`, `Inter`, `JetBrains Mono`).
-- **Backend:** Node.js & Express API with modular routes:
-  - `POST /api/design` — Structured UI generation from prompt & mood board.
-  - `POST /api/refine` — Surgical AST refinements preserving existing layout.
-  - `POST /api/diagnose` — Bug root cause analysis and explanation.
-  - `POST /api/repair` — Validation and application of proposed patches.
-  - `POST /api/test` — Automated 8-check diagnostic suite.
-  - `GET /api/health` — Service health & AI configuration status.
-- **AI Integration:** Google Gemma 4 (`gemma-2-9b-it`, `gemma-2-27b-it`, `gemini-2.5-flash`, `gemini-1.5-flash`) via Google AI API.
-- **Local High-Fidelity Engine:** When no API credentials are configured, the studio runs seamlessly in offline local synthesis mode with full editing, testing, and export features enabled.
+| Feature | Description |
+| :--- | :--- |
+| 🤖 **AI Design Generation** | Describe any UI in plain English — Gemini generates a full structured component layout |
+| ✏️ **Visual Editing** | Click any canvas element to edit text, styles, padding, images, and buttons directly |
+| 🎨 **12 Color Palettes** | Instant theme switching with reactive CSS design tokens |
+| 🖼️ **Mood Board** | Upload reference images to guide the AI's aesthetic direction |
+| 🔍 **8-Point Diagnostics** | Automated WCAG, mobile overflow, alt text, and contrast checks |
+| 🛠️ **AI Bug Repair** | Before/after diffs for every proposed fix — accept, reject, or undo |
+| 🔐 **Authentication** | JWT-based login/signup with bcrypt password hashing and per-user project isolation |
+| 📤 **Export** | Standalone HTML or full React + Vite `.zip` project bundle |
+| 📱 **Viewport Preview** | Desktop / Tablet / Mobile breakpoints with zoom controls |
+| ⏮️ **Undo / Redo** | Full history stack with keyboard shortcuts (`Cmd+Z` / `Cmd+Shift+Z`) |
+| 🗂️ **Version Snapshots** | Save named milestones and restore to any previous version |
+
+---
+
+## 🚀 Workflow
+
+```
+Sign Up / Log In ──► Dashboard ──► Create Project ──► Describe UI ──► Generate ──► Customize ──► Debug & Repair ──► Export
+```
+
+---
+
+## 🛠️ Tech Stack
+
+### Frontend
+- **React 18** + **Vite 5**
+- **Vanilla CSS** with custom CSS variable design tokens
+- **Lucide React** icons
+- **Google Fonts** — Plus Jakarta Sans, Inter, JetBrains Mono
+
+### Backend
+- **Node.js** + **Express 4**
+- **bcryptjs** — password hashing (10 salt rounds)
+- **jsonwebtoken** — signed JWT session tokens
+- **dotenv** — environment configuration
+- **JSON flat-file storage** — atomic read/write for users and projects
+
+### AI
+- **Google Gemini API** (`gemini-3.8-flash` default)
+- **Local High-Fidelity Engine** — full offline fallback with 8-point AST rule synthesis (no API key required)
+
+---
+
+## 📡 API Routes
+
+### Auth — `/api/auth`
+| Method | Route | Description |
+| :--- | :--- | :--- |
+| `POST` | `/signup` | Register a new user |
+| `POST` | `/login` | Authenticate and receive JWT |
+| `GET` | `/me` | Restore session from token |
+| `POST` | `/forgot-password` | Generate password reset token |
+| `POST` | `/reset-password` | Set new password with reset token |
+
+### Projects — `/api/projects` *(requires auth)*
+| Method | Route | Description |
+| :--- | :--- | :--- |
+| `GET` | `/` | List all projects for the logged-in user |
+| `POST` | `/` | Create a new project |
+| `GET` | `/:id` | Get a single project (ownership verified) |
+| `PUT` | `/:id` | Update a project (ownership verified) |
+| `DELETE` | `/:id` | Delete a project (ownership verified) |
+
+### AI & Design — `/api`
+| Method | Route | Description |
+| :--- | :--- | :--- |
+| `POST` | `/design` | Generate UI components from prompt + palette + mood board |
+| `POST` | `/refine` | Surgically update existing components via natural language |
+| `POST` | `/diagnose` | Identify root cause of a reported UI issue |
+| `POST` | `/repair` | Validate and apply a proposed AST patch |
+| `POST` | `/test` | Run the 8-point automated diagnostic suite |
+| `GET` | `/health` | Server health + AI configuration status |
 
 ---
 
@@ -44,92 +92,157 @@ Imagine ──► Design ──► Generate ──► Preview ──► Customiz
 - Node.js 18+ (tested on Node 26)
 - npm 9+
 
-### 1. Installation
+### 1. Clone & Install
 
 ```bash
-# Clone the repository
 git clone https://github.com/Lara1402/DTU-Hackathon.git
 cd DTU-Hackathon
-
-# Install root, server, and client dependencies in one command
 npm run install:all
 ```
 
-### 2. Environment Configuration (Optional for Gemma 4 Cloud AI)
-
-Copy `.env.example` to `server/.env`:
+### 2. Configure Environment
 
 ```bash
 cp .env.example server/.env
 ```
 
-Set your Google AI API key:
+Edit `server/.env`:
+
 ```env
+# Required
 PORT=3001
-GEMMA_API_KEY=your_google_ai_key_here
-GEMMA_MODEL=gemma-2-9b-it
+JWT_SECRET=your_secure_random_secret_here
+
+# Optional — Google AI API key (get one free at https://aistudio.google.com)
+# Leave blank to use the Local High-Fidelity Engine (fully offline mode)
+GEMINI_API_KEY=your_key_here
+GEMMA_MODEL=gemini-3.8-flash
 ```
 
-*Note: If `GEMMA_API_KEY` is not set, MoodUI Studio automatically activates the **Local High-Fidelity Synthesis Engine**, ensuring every feature remains functional without cloud credentials.*
+> ⚠️ **Never commit `server/.env` to git.** It is listed in `.gitignore` and excluded from all commits.
 
-### 3. Launch Development Server
+### 3. Run
 
 ```bash
 npm run dev
 ```
 
-This starts:
-- **Backend API server:** `http://localhost:3001`
-- **Frontend Vite studio:** `http://localhost:5173`
+| Service | URL |
+| :--- | :--- |
+| Frontend (Vite) | http://localhost:5173 |
+| Backend (Express) | http://localhost:3001 |
+| Health Check | http://localhost:3001/api/health |
 
 ---
 
-## 🎨 12 Curated Preset Color Palettes
+## 🗂️ Project Structure
 
-Switching palettes updates the live canvas immediately without spending AI requests:
+```
+DTU-Hackathon/
+├── client/                        # React + Vite frontend
+│   ├── src/
+│   │   ├── App.jsx                # Root app — routing, auth guard, studio workspace
+│   │   ├── index.css              # Global design system tokens & styles
+│   │   ├── context/
+│   │   │   └── AuthContext.jsx    # JWT auth state provider
+│   │   ├── state/
+│   │   │   ├── useProjectStore.js # Project state, undo/redo, persistence
+│   │   │   ├── palettes.js        # 12 curated color palette definitions
+│   │   │   └── starterTemplates.js
+│   │   └── components/
+│   │       ├── Auth/              # LoginPage, SignupPage
+│   │       ├── Dashboard/         # Project list dashboard
+│   │       ├── Canvas/            # LiveCanvas, ComponentRenderer
+│   │       ├── LeftPanel/         # Chat + MoodBoard input
+│   │       ├── RightPanel/        # Design, Properties, Debug, Code tabs
+│   │       ├── TopNav.jsx         # Top navigation bar
+│   │       └── Modals/            # Export, Settings, Version, NewProject
+│   └── vite.config.js
+│
+├── server/                        # Node.js + Express backend
+│   ├── index.js                   # App entry point, middleware, route mounting
+│   ├── middleware/
+│   │   └── auth.js                # JWT verification middleware
+│   ├── routes/
+│   │   ├── auth.js                # /api/auth — signup, login, me, reset
+│   │   ├── projects.js            # /api/projects — CRUD with ownership checks
+│   │   ├── design.js              # /api/design — AI UI generation
+│   │   ├── refine.js              # /api/refine — AI refinement
+│   │   ├── diagnose.js            # /api/diagnose — AI bug diagnosis
+│   │   ├── repair.js              # /api/repair — patch application
+│   │   └── test.js                # /api/test — automated diagnostics
+│   ├── services/
+│   │   ├── gemmaService.js        # Google AI + Local synthesis engine
+│   │   ├── db.js                  # JSON flat-file storage (users + projects)
+│   │   └── testRunner.js          # 8-point diagnostic suite
+│   ├── schema/
+│   │   ├── validator.js           # Component AST schema validation
+│   │   └── defaultTemplates.js    # Starter component templates
+│   ├── .env.example               # Environment variable template
+│   └── package.json
+│
+├── package.json                   # Root: install:all, dev, build scripts
+├── .env.example                   # Root env example
+├── .gitignore                     # node_modules, .env, server/data excluded
+└── README.md
+```
 
-| Palette | Aesthetic | Key Colors |
+---
+
+## 🎨 Color Palettes
+
+| Palette | Vibe | Primary |
 | :--- | :--- | :--- |
-| **Minimal Neutral** | Clean grayscale with stone accents | `#18181b`, `#fafafa` |
-| **Light and Clean** | Crisp airy layout with sky blue highlights | `#0284c7`, `#f8fafc` |
-| **Dark Professional** | Deep slate with vibrant electric blue | `#3b82f6`, `#0f172a` |
-| **Midnight Blue** | Intense indigo night with cyan highlights | `#6366f1`, `#030712` |
-| **Purple Gradient** | Dynamic neon violet and fuchsia | `#8b5cf6`, `#090514` |
-| **Ocean Blue** | Deep sea navy paired with turquoise | `#0d9488`, `#041724` |
-| **Forest Green** | Organic moss and emerald earth tones | `#10b981`, `#061a12` |
-| **Warm Earthy** | Terracotta, ochre, and warm clay | `#ea580c`, `#1a120b` |
-| **Pastel Dream** | Soft lavender, peach, and mint | `#a78bfa`, `#faf5ff` |
-| **Vibrant & Playful** | High-energy coral and sunshine yellow | `#f43f5e`, `#0c0a09` |
-| **Monochrome** | Pure brutalist black and stark white | `#ffffff`, `#000000` |
-| **High Contrast** | WCAG AAA maximum visibility with yellow accents | `#facc15`, `#000000` |
+| Minimal Neutral | Grayscale | `#18181b` |
+| Light & Clean | Airy sky blue | `#0284c7` |
+| Dark Professional | Electric blue on slate | `#3b82f6` |
+| Midnight Blue | Indigo + cyan | `#6366f1` |
+| Purple Gradient | Neon violet + fuchsia | `#8b5cf6` |
+| Ocean Blue | Turquoise on navy | `#0d9488` |
+| Forest Green | Emerald + moss | `#10b981` |
+| Warm Earthy | Terracotta + clay | `#ea580c` |
+| Pastel Dream | Lavender + mint | `#a78bfa` |
+| Vibrant & Playful | Coral + yellow | `#f43f5e` |
+| Monochrome | Pure brutalist B&W | `#ffffff` |
+| High Contrast | WCAG AAA + yellow | `#facc15` |
 
 ---
 
-## 🔍 Integrated AI Debugging & Repair
+## 🔍 Automated Diagnostics (8 Checks)
 
-The integrated **Debug Tab** allows you to:
-1. **Run 8 Runtime Checks:**
-   - Mobile Viewport Overflow (fixed widths > 360px)
-   - Accessible Button Labels (`aria-label`, non-empty text)
-   - Image Alt Attributes (WCAG AA)
-   - Contrast Ratios (WCAG AA 4.5:1 ratio calculation)
-   - Broken / Placeholder Image detection
-   - Form Inputs Validation & Labels
-   - Navigation Link Destination Targets
-   - Page Structure (Navbar, Footer, Hero/Features)
-2. **AI Diagnosis:** Identifies the root cause, affected component ID, and severity rating.
-3. **Diff Inspection:** Renders side-by-side Before/After diffs for proposed AST modifications.
-4. **Apply, Reject, Undo:** Users have full control. Applying a fix updates the canvas and re-runs checks to confirm resolution.
+The Debug Tab runs these checks on every generated or updated design:
+
+1. **Mobile Overflow** — Fixed widths > 360px breaking mobile layout
+2. **Button Labels** — Missing `aria-label` or empty button text
+3. **Image Alt Text** — Missing WCAG-compliant alt attributes
+4. **Color Contrast** — Luminance ratio below WCAG AA 4.5:1 threshold
+5. **Broken Images** — Placeholder or unresolved image URLs
+6. **Form Validation** — Inputs missing labels or validation attributes
+7. **Navigation Links** — Anchor hrefs pointing to `#` or undefined targets
+8. **Page Structure** — Missing semantic regions (navbar, footer, main content)
 
 ---
 
-## 📦 Export Capabilities
+## 📦 Export Options
 
-- **Standalone HTML + CSS:** Single clean file with all responsive styles, fonts, and Lucide icons embedded. No build step needed.
-- **React + Vite Project (ZIP):** Complete application bundle with `package.json`, `index.html`, `src/App.jsx`, `src/index.css`, `vite.config.js`, and `README.md`.
-- **One-Click Clipboard Copy:** Instant copying of HTML, React JSX, or JSON AST schema.
+| Format | Contents |
+| :--- | :--- |
+| **Standalone HTML** | Single self-contained file with all CSS, fonts, and icons inlined |
+| **React + Vite ZIP** | Complete project: `package.json`, `vite.config.js`, `App.jsx`, `index.css`, `README.md` |
+| **Clipboard** | Copy HTML, React JSX, or raw JSON component AST |
+
+---
+
+## 🔐 Security Notes
+
+- Passwords are hashed with **bcrypt** (10 salt rounds) — plaintext is never stored
+- JWT tokens are signed with `JWT_SECRET` from environment variables
+- Projects are strictly isolated by `userId` — cross-user access returns `403 Forbidden`
+- The `server/.env` file (containing API keys and JWT secret) is **gitignored** and never committed
+- User data is stored in `server/data/` which is also **gitignored**
 
 ---
 
 ## 📄 License
-MIT License. Built for the DTU Hackathon 2026.
+
+MIT — Built with ❤️ for the **DTU Hackathon 2026**.

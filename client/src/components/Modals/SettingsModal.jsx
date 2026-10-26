@@ -3,7 +3,7 @@ import { Settings, X, Check, Server, Key, Cpu, ShieldCheck, AlertCircle } from '
 
 export default function SettingsModal({ isOpen, onClose, settings, onSaveSettings }) {
   const [apiKey, setApiKey] = useState(settings.apiKey || '');
-  const [model, setModel] = useState(settings.model || 'gemma-2-9b-it');
+  const [model, setModel] = useState(settings.model || 'gemini-3.8-flash');
   const [localMode, setLocalMode] = useState(settings.localMode || false);
   const [healthStatus, setHealthStatus] = useState(null);
   const [isCheckingHealth, setIsCheckingHealth] = useState(false);
@@ -101,6 +101,29 @@ export default function SettingsModal({ isOpen, onClose, settings, onSaveSetting
             </div>
           )}
 
+          {/* API Key Configuration */}
+          <div className="studio-prop-group">
+            <label className="studio-prop-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Key size={13} />
+              Google AI / Gemma API Key
+            </label>
+            <div style={{ position: 'relative' }}>
+              <input
+                type="password"
+                className="studio-prop-input"
+                style={{ width: '100%', fontFamily: 'var(--font-mono)', fontSize: '0.82rem' }}
+                placeholder="AIza... (Get key from aistudio.google.com)"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--studio-text-dim)', marginTop: '4px' }}>
+              Leave blank to use the Local High-Fidelity Synthesis Engine (offline mode). Key is stored locally only.
+            </div>
+          </div>
+
           {/* Model Selector */}
           <div className="studio-prop-group">
             <label className="studio-prop-label">Primary AI Model</label>
@@ -109,10 +132,12 @@ export default function SettingsModal({ isOpen, onClose, settings, onSaveSetting
               value={model}
               onChange={(e) => setModel(e.target.value)}
             >
-              <option value="gemma-2-9b-it">Google Gemma 4 (gemma-2-9b-it)</option>
-              <option value="gemma-2-27b-it">Google Gemma 4 (gemma-2-27b-it)</option>
-              <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+              <option value="gemini-3.8-flash">⚡ Gemini 3.8 Flash (Recommended)</option>
+              <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
               <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+              <option value="gemini-2.5-pro">🧠 Gemini 2.5 Pro</option>
+              <option value="gemma-3-27b-it">Gemma 3 27B Instruct</option>
+              <option value="gemma-3-12b-it">Gemma 3 12B Instruct</option>
             </select>
           </div>
 

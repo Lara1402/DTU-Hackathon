@@ -10,12 +10,16 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ success: false, error: 'A non-empty prompt is required' });
     }
 
+    // Accept optional per-request API key override from client settings
+    const apiKeyOverride = req.headers['x-api-key'] || null;
+
     const result = await gemmaService.generateDesign({
       prompt,
       palette,
       moodBoard,
       designPreferences,
-      model
+      model,
+      apiKeyOverride
     });
 
     res.json(result);

@@ -13,7 +13,10 @@ import {
   Check, 
   Loader2,
   ZoomIn,
-  ZoomOut
+  ZoomOut,
+  LayoutGrid,
+  LogOut,
+  User
 } from 'lucide-react';
 
 export default function TopNav({
@@ -32,20 +35,33 @@ export default function TopNav({
   onOpenSettingsModal,
   onOpenVersionModal,
   onOpenNewProjectModal,
-  aiStatus
+  aiStatus,
+  onNavigateToDashboard,
+  user,
+  onLogout
 }) {
   return (
     <header className="studio-top-nav">
       {/* Brand & Project Name */}
       <div className="studio-brand-group">
+        <button
+          type="button"
+          className="studio-btn-secondary"
+          style={{ padding: '6px 10px', fontSize: '0.78rem' }}
+          onClick={onNavigateToDashboard}
+          title="Return to your Projects Dashboard"
+        >
+          <LayoutGrid size={14} />
+          <span>Dashboard</span>
+        </button>
+
+        <div style={{ width: '1px', height: '20px', background: 'var(--studio-border)' }} />
+
         <div className="studio-logo-icon">
-          <Sparkles size={18} />
+          <Sparkles size={16} />
         </div>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <span className="studio-brand-title">MoodUI Studio</span>
-            <span className="studio-brand-tagline">Imagine. Build. Refine. Debug.</span>
-          </div>
+          <span className="studio-brand-title">MoodUI Studio</span>
         </div>
 
         <div style={{ width: '1px', height: '24px', background: 'var(--studio-border)', margin: '0 4px' }} />
@@ -181,6 +197,35 @@ export default function TopNav({
         >
           <Settings size={16} />
         </button>
+
+        {user && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingLeft: '8px', borderLeft: '1px solid var(--studio-border)' }}>
+            <div
+              title={`Logged in as ${user.name} (${user.email})`}
+              style={{
+                width: '30px',
+                height: '30px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #6366f1 0%, #ec4899 100%)',
+                color: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '0.75rem',
+                fontWeight: 700
+              }}
+            >
+              {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+            </div>
+            <button
+              className="studio-icon-btn"
+              onClick={onLogout}
+              title="Log out of MoodUI Studio"
+            >
+              <LogOut size={15} />
+            </button>
+          </div>
+        )}
       </div>
     </header>
   );

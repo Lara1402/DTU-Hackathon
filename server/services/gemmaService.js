@@ -7,29 +7,39 @@
 import { validateComponentTree, validatePatch } from '../schema/validator.js';
 import { STARTER_TEMPLATES } from '../schema/defaultTemplates.js';
 
-const DEFAULT_MODEL = process.env.GEMMA_MODEL || 'gemma-2-9b-it';
+const DEFAULT_MODEL = 'gemini-3.8-flash';
 
 export class GemmaService {
   constructor() {
-    this.apiKey = process.env.GEMMA_API_KEY || process.env.GEMINI_API_KEY || '';
     this.apiEndpoint = process.env.GEMMA_API_ENDPOINT || 'https://generativelanguage.googleapis.com/v1beta';
-    this.model = DEFAULT_MODEL;
   }
 
-  isConfigured() {
-    return Boolean(this.apiKey && this.apiKey.trim().length > 5);
+  // Read API key lazily so dotenv timing doesn't matter
+  get apiKey() {
+    return process.env.GEMINI_API_KEY || process.env.GEMMA_API_KEY || '';
+  }
+
+  // Read model lazily too
+  get model() {
+    return process.env.GEMMA_MODEL || DEFAULT_MODEL;
+  }
+
+  isConfigured(apiKeyOverride = null) {
+    const key = apiKeyOverride || this.apiKey;
+    return Boolean(key && key.trim().length > 5);
   }
 
   /**
    * Helper to perform request to Google AI Generative Language API
    */
-  async callGoogleAI(prompt, systemInstruction = '', modelOverride = null) {
-    if (!this.isConfigured()) {
+  async callGoogleAI(prompt, systemInstruction = '', modelOverride = null, apiKeyOverride = null) {
+    const apiKey = apiKeyOverride || this.apiKey;
+    if (!apiKey || apiKey.trim().length <= 5) {
       throw new Error('Gemma API credentials not configured. Configure GEMMA_API_KEY in server/.env or Studio Settings.');
     }
 
     const model = modelOverride || this.model;
-    const url = `${this.apiEndpoint}/models/${model}:generateContent?key=${this.apiKey}`;
+    const url = `${this.apiEndpoint}/models/${model}:generateContent?key=${apiKey}`;
 
     const body = {
       contents: [
@@ -40,8 +50,7 @@ export class GemmaService {
       ],
       generationConfig: {
         temperature: 0.3,
-        maxOutputTokens: 4096,
-        responseMimeType: 'application/json'
+        maxOutputTokens: 8192
       }
     };
 
@@ -79,8 +88,8 @@ export class GemmaService {
   /**
    * POST /api/design - Generate structured UI from user prompt, palette, and mood board
    */
-  async generateDesign({ prompt, palette, moodBoard = [], designPreferences = {}, model = null }) {
-    if (this.isConfigured()) {
+  async generateDesign({ prompt, palette, moodBoard = [], designPreferences = {}, model = null, apiKeyOverride = null }) {
+    if (this.isConfigured(apiKeyOverride)) {
       try {
         const systemInstruction = `You are MoodUI Studio's AI layout architect powered by Gemma.
 Output ONLY valid JSON representing an array of structured components following the schema:
@@ -104,7 +113,7 @@ Palette Preference: ${palette?.name || 'Modern Dark'} (Primary: ${palette?.prima
 ${moodContext}
 Preferences: ${JSON.stringify(designPreferences)}`;
 
-        const rawJson = await this.callGoogleAI(userPrompt, systemInstruction, model);
+        const rawJson = await this.callGoogleAI(userPrompt, systemInstruction, model, apiKeyOverride);
         let parsed;
         try {
           parsed = JSON.parse(rawJson);
@@ -191,27 +200,67 @@ Preferences: ${JSON.stringify(designPreferences)}`;
 
   /**
    * POST /api/refine - Natural language refinement with component-level edits
+   * Uses Gemma AI when configured, falls back to deterministic local engine.
    */
-  async refineDesign({ prompt, components, palette, selectedId = null }) {
+  async refineDesign({ prompt, components, palette, selectedId = null, model = null, apiKeyOverride = null }) {
+    // Attempt AI-powered refinement when credentials are available
+    if (this.isConfigured(apiKeyOverride)) {
+      try {
+        const systemInstruction = `You are MoodUI Studio's AI refinement engine powered by Gemma.
+The user has an existing website specification (component AST) and wants to modify it.
+Output ONLY valid JSON as an array of components following the SAME schema as the input.
+Preserve all component IDs. Only modify what the user specifies.
+Each component has: { "id": string, "type": string, "props": object, "style": object }
+Make targeted surgical changes only. Keep all other components unchanged.`;
+
+        const userPrompt = `Current Website AST:
+${JSON.stringify(components, null, 2)}
+
+User Refinement Request: "${prompt}"
+${selectedId ? `Focused Component ID: "${selectedId}"` : ''}
+Active Palette: ${JSON.stringify({ primary: palette?.primary, background: palette?.background, name: palette?.name })}
+
+Return the complete updated component array as JSON, preserving unchanged components exactly.`;
+
+        const rawJson = await this.callGoogleAI(userPrompt, systemInstruction, model, apiKeyOverride);
+        let parsed;
+        try {
+          parsed = JSON.parse(rawJson);
+        } catch (err) {
+          const match = rawJson.match(/```json\s*([\s\S]*?)\s*```/);
+          if (match) parsed = JSON.parse(match[1]);
+          else throw new Error(`Failed to parse AI refinement output: ${err.message}`);
+        }
+
+        const updatedComponents = Array.isArray(parsed) ? parsed : (parsed.components || components);
+        return {
+          success: true,
+          refinementPrompt: prompt,
+          components: updatedComponents,
+          appliedPatches: [{ operation: 'ai-full-update', summary: `Gemma AI applied: "${prompt}"` }],
+          aiActive: true,
+          model: model || this.model,
+          message: `Gemma AI applied your refinement: "${prompt}"`
+        };
+      } catch (aiError) {
+        console.warn('AI refinement failed, using local engine:', aiError.message);
+        // Fall through to local refinement engine
+      }
+    }
+
+    // Local Deterministic Refinement Engine
     const lower = prompt.toLowerCase();
     const updated = JSON.parse(JSON.stringify(components));
     const patches = [];
 
-    // Check for common targeted refinement operations:
     // 1. Spacing changes
     if (lower.includes('spacing') || lower.includes('spacious') || lower.includes('padding')) {
       const isSpacious = lower.includes('more') || lower.includes('increase') || lower.includes('spacious');
       const targetPadding = isSpacious ? '96px 24px' : '40px 16px';
-      
       const targetNode = selectedId ? updated.find(c => c.id === selectedId) : updated.find(c => c.type === 'hero');
       if (targetNode) {
         targetNode.style = { ...targetNode.style, padding: targetPadding };
-        patches.push({
-          operation: 'update-style',
-          targetId: targetNode.id,
-          style: { padding: targetPadding },
-          summary: `Updated padding to ${targetPadding} on ${targetNode.type} (${targetNode.id})`
-        });
+        patches.push({ operation: 'update-style', targetId: targetNode.id, style: { padding: targetPadding }, summary: `Updated padding to ${targetPadding} on ${targetNode.type}` });
       }
     }
 
@@ -221,26 +270,16 @@ Preferences: ${JSON.stringify(designPreferences)}`;
       if (nav) {
         nav.props.isSticky = true;
         nav.style = { ...nav.style, position: 'sticky', top: 0, zIndex: 100 };
-        patches.push({
-          operation: 'update-props',
-          targetId: nav.id,
-          props: { isSticky: true },
-          summary: 'Made navigation bar sticky at top of viewport'
-        });
+        patches.push({ operation: 'update-props', targetId: nav.id, props: { isSticky: true }, summary: 'Made navigation bar sticky at top of viewport' });
       }
     }
 
-    // 3. CTA position or title changes
+    // 3. CTA changes
     if (lower.includes('button') || lower.includes('call-to-action') || lower.includes('cta')) {
       const hero = updated.find(c => c.type === 'hero');
       if (hero && lower.includes('change')) {
         hero.props.primaryBtnText = 'Get Started Now';
-        patches.push({
-          operation: 'update-props',
-          targetId: hero.id,
-          props: { primaryBtnText: 'Get Started Now' },
-          summary: 'Updated primary call-to-action button text'
-        });
+        patches.push({ operation: 'update-props', targetId: hero.id, props: { primaryBtnText: 'Get Started Now' }, summary: 'Updated primary CTA button text' });
       }
     }
 
@@ -248,48 +287,39 @@ Preferences: ${JSON.stringify(designPreferences)}`;
     if (lower.includes('feature') && (lower.includes('add') || lower.includes('more'))) {
       const features = updated.find(c => c.type === 'features');
       if (features && Array.isArray(features.props.items)) {
-        features.props.items.push({
-          icon: 'Layers',
-          title: 'Cloud Orchestration',
-          description: 'Automated container deployments with zero-downtime rolling updates.'
-        });
-        patches.push({
-          operation: 'update-props',
-          targetId: features.id,
-          props: { items: features.props.items },
-          summary: 'Added new feature card to Features section'
-        });
+        features.props.items.push({ icon: 'Layers', title: 'Cloud Orchestration', description: 'Automated container deployments with zero-downtime rolling updates.' });
+        patches.push({ operation: 'update-props', targetId: features.id, props: { items: features.props.items }, summary: 'Added new feature card' });
       }
     }
 
-    // 5. General heading edit
+    // 5. General heading/title changes
     if (lower.includes('heading') || lower.includes('title')) {
       const target = selectedId ? updated.find(c => c.id === selectedId) : updated.find(c => c.type === 'hero');
       if (target && target.props.title) {
-        const cleaned = prompt.replace(/(change|update|make)\s+(the)?\s+(heading|title)\s+(to)?/i, '').replace(/["']/g, '').trim();
+        const cleaned = prompt.replace(/(change|update|make)\s+(the)?\s+(heading|title)\s+(to)?/i, '').replace(/[\"']/g, '').trim();
         if (cleaned) {
           target.props.title = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
-          patches.push({
-            operation: 'update-props',
-            targetId: target.id,
-            props: { title: target.props.title },
-            summary: `Updated title of ${target.type} (${target.id}) to "${target.props.title}"`
-          });
+          patches.push({ operation: 'update-props', targetId: target.id, props: { title: target.props.title }, summary: `Updated title to "${target.props.title}"` });
         }
       }
     }
 
-    // If no specific keyword rule matched, refine selected or hero safely
+    // 6. Dark/light mode toggle
+    if (lower.includes('dark') || lower.includes('light')) {
+      const hero = updated.find(c => c.type === 'hero') || updated[0];
+      if (hero) {
+        const isDark = lower.includes('dark');
+        hero.style = { ...hero.style, backgroundColor: isDark ? 'var(--theme-background)' : '#ffffff', color: isDark ? '#f8fafc' : '#09090b' };
+        patches.push({ operation: 'update-style', targetId: hero.id, style: hero.style, summary: `Applied ${isDark ? 'dark' : 'light'} mode styling` });
+      }
+    }
+
+    // Fallback: generic content update
     if (patches.length === 0) {
       const target = selectedId ? updated.find(c => c.id === selectedId) : updated.find(c => c.type === 'hero');
       if (target) {
-        target.props.subtitle = `${target.props.subtitle || ''} Refined with user instruction: "${prompt}".`;
-        patches.push({
-          operation: 'update-props',
-          targetId: target.id,
-          props: { subtitle: target.props.subtitle },
-          summary: `Refined content of ${target.type} (${target.id})`
-        });
+        target.props.subtitle = `Refined: "${prompt}". ${target.props.subtitle || ''}`.trim();
+        patches.push({ operation: 'update-props', targetId: target.id, props: { subtitle: target.props.subtitle }, summary: `Applied refinement to ${target.type}` });
       }
     }
 
@@ -298,14 +328,76 @@ Preferences: ${JSON.stringify(designPreferences)}`;
       refinementPrompt: prompt,
       components: updated,
       appliedPatches: patches,
-      message: `Applied ${patches.length} surgical update(s) while preserving existing content.`
+      aiActive: false,
+      message: `Applied ${patches.length} update(s) via local engine. For AI-powered refinements, add your API key in Settings.`
     };
   }
 
+
   /**
    * POST /api/diagnose - Diagnose reported issue with AST context
+   * Uses AI when credentials are available, falls back to rule-based engine.
    */
-  async diagnoseIssue({ issueDescription, components, selectedId = null, errorContext = '' }) {
+  async diagnoseIssue({ issueDescription, components, selectedId = null, errorContext = '', model = null, apiKeyOverride = null }) {
+    // Attempt AI-powered diagnosis
+    if (this.isConfigured(apiKeyOverride)) {
+      try {
+        const systemInstruction = `You are MoodUI Studio's AI debugging assistant.
+Analyze the given website component AST and the reported issue.
+Return ONLY valid JSON with this exact shape:
+{
+  "severity": "low" | "medium" | "high",
+  "componentId": string | null,
+  "componentType": string,
+  "suspectedCause": string,
+  "explanation": string,
+  "proposedRepair": {
+    "operation": "update-style" | "update-props" | "remove" | "add",
+    "targetId": string | null,
+    "before": object,
+    "after": object,
+    "summary": string
+  }
+}`;
+
+        const userPrompt = `Website Component AST:
+${JSON.stringify(components, null, 2)}
+
+Reported Issue: "${issueDescription}"
+${errorContext ? `Error Context / Stack: "${errorContext}"` : ''}
+${selectedId ? `User-Selected Component ID: "${selectedId}"` : ''}
+
+Diagnose the root cause and provide a concrete repair patch.`;
+
+        const rawJson = await this.callGoogleAI(userPrompt, systemInstruction, model, apiKeyOverride);
+        let parsed;
+        try {
+          parsed = JSON.parse(rawJson);
+        } catch (_) {
+          const match = rawJson.match(/```json\s*([\s\S]*?)\s*```/);
+          if (match) parsed = JSON.parse(match[1]);
+          else throw new Error('AI diagnosis returned unparseable JSON');
+        }
+
+        return {
+          success: true,
+          issue: issueDescription,
+          severity: parsed.severity || 'medium',
+          componentId: parsed.componentId || null,
+          componentType: parsed.componentType || 'component',
+          suspectedCause: parsed.suspectedCause || 'AI analysis could not determine root cause',
+          explanation: parsed.explanation || '',
+          proposedRepair: parsed.proposedRepair || null,
+          aiActive: true,
+          model: model || this.model,
+          timestamp: new Date().toISOString()
+        };
+      } catch (aiError) {
+        console.warn('AI diagnosis failed, using rule-based engine:', aiError.message);
+        // Fall through to local engine
+      }
+    }
+
     const lower = (issueDescription + ' ' + errorContext).toLowerCase();
     let diagnosedComponent = null;
     let cause = 'General layout or styling discrepancy';

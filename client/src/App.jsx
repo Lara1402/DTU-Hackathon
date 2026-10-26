@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import { useProject } from './state/useProjectStore.js';
 import { PRESET_PALETTES, getPaletteById } from './state/palettes.js';
 import { STARTER_TEMPLATES } from './state/starterTemplates.js';
+
+import LoginPage from './components/Auth/LoginPage.jsx';
+import SignupPage from './components/Auth/SignupPage.jsx';
+import Dashboard from './components/Dashboard/Dashboard.jsx';
 
 import TopNav from './components/TopNav.jsx';
 import LeftPanel from './components/LeftPanel/LeftPanel.jsx';
@@ -13,8 +18,13 @@ import SettingsModal from './components/Modals/SettingsModal.jsx';
 import VersionModal from './components/Modals/VersionModal.jsx';
 import NewProjectModal from './components/Modals/NewProjectModal.jsx';
 
-export default function App() {
-  const store = useProject();
+function MainStudioApp() {
+  const { user, token, isAuthenticated, isLoading: authLoading, logout } = useAuth();
+  const store = useProject(user, token);
+
+  // Active view: 'dashboard' | 'studio' | 'login' | 'signup'
+  const [currentView, setCurrentView] = useState('dashboard');
+  const [authView, setAuthView] = useState('login'); // 'login' | 'signup'
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -22,7 +32,14 @@ export default function App() {
   const [isVersionModalOpen, setIsVersionModalOpen] = useState(false);
   const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
 
-  // Global Keyboard Shortcuts (Undo, Redo, Esc)
+  // Clear demo data / old un-namespaced localStorage keys on startup
+  useEffect(() => {
+    try {
+      localStorage.removeItem('moodui_studio_current_project');
+    } catch (_) {}
+  }, []);
+
+  // Keyboard Shortcuts (Undo, Redo, Esc)
   useEffect(() => {
     const handleKeyDown = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
@@ -42,7 +59,95 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [store]);
 
-  // Handle Send Message (Generation or Refinement)
+  // Loading state while restoring session
+  if (authLoading) {
+    return (
+      <div style={{
+        height: '100vh',
+        width: '100vw',
+        background: '#090a0f',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: '#f8fafc',
+        gap: '16px'
+      }}>
+        <div style={{
+          width: '36px',
+          height: '36px',
+          border: '3px solid rgba(99, 102, 241, 0.2)',
+          borderTopColor: '#6366f1',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite'
+        }} />
+        <span style={{ fontSize: '0.88rem', color: '#94a3b8' }}>Restoring MoodUI Studio session...</span>
+      </div>
+    );
+  }
+
+  // Route Guard: Logged-out users only see Login or Signup
+  if (!isAuthenticated) {
+    if (authView === 'signup') {
+      return <SignupPage onNavigateToLogin={() => setAuthView('login')} />;
+    }
+    return <LoginPage onNavigateToSignup={() => setAuthView('signup')} />;
+  }
+
+  // Authenticated: Dashboard View
+  if (currentView === 'dashboard') {
+    return (
+      <Dashboard
+        onOpenProject={(project) => {
+          store.loadProject(project);
+          setCurrentView('studio');
+        }}
+        onCreateNewProject={async (templateKey) => {
+          let initialComponents = [];
+          let initialPalette = PRESET_PALETTES[2];
+          let projName = 'Untitled Project';
+
+          if (templateKey && templateKey !== 'blank') {
+            const tpl = STARTER_TEMPLATES[templateKey];
+            if (tpl) {
+              initialComponents = tpl.components;
+              initialPalette = getPaletteById(tpl.paletteName) || PRESET_PALETTES[2];
+              projName = tpl.name;
+            }
+          }
+
+          // Create on backend
+          try {
+            const res = await fetch('/api/projects', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                name: projName,
+                palette: initialPalette,
+                components: initialComponents,
+                versions: []
+              })
+            });
+            if (res.ok) {
+              const data = await res.json();
+              store.loadProject(data.project);
+            } else {
+              store.createNewProject(projName, initialComponents);
+            }
+          } catch (e) {
+            store.createNewProject(projName, initialComponents);
+          }
+
+          setCurrentView('studio');
+        }}
+      />
+    );
+  }
+
+  // Authenticated: Main Studio Workspace
   const handleSendMessage = async ({ text, attachments, moodBoard }) => {
     setIsProcessing(true);
 
@@ -59,7 +164,10 @@ export default function App() {
     try {
       const response = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(store.settings.apiKey ? { 'X-API-Key': store.settings.apiKey } : {})
+        },
         body: JSON.stringify({
           prompt: text,
           components: store.components,
@@ -109,7 +217,6 @@ export default function App() {
     }
   };
 
-  // Run Automated Diagnostic Suite
   const handleRunDiagnostics = async (comps = store.components) => {
     try {
       const res = await fetch('/api/test', {
@@ -125,17 +232,19 @@ export default function App() {
         store.setDiagnosticsReport(report);
       }
     } catch (e) {
-      console.warn('Failed to run diagnostics via API, running locally:', e);
+      console.warn('Failed to run diagnostics via API:', e);
     }
   };
 
-  // Diagnose specific reported issue
   const handleDiagnose = async (issueDescription, errorContext) => {
     store.setIsDiagnosing(true);
     try {
       const res = await fetch('/api/diagnose', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(store.settings.apiKey ? { 'X-API-Key': store.settings.apiKey } : {})
+        },
         body: JSON.stringify({
           issueDescription,
           components: store.components,
@@ -159,7 +268,6 @@ export default function App() {
     }
   };
 
-  // Apply proposed repair
   const handleApplyRepair = async (repair) => {
     try {
       const res = await fetch('/api/repair', {
@@ -174,10 +282,8 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         store.applyRepair(repair);
-        // Verify fix
         handleRunDiagnostics(data.components);
       } else {
-        // Fallback local apply
         store.applyRepair(repair);
       }
     } catch (e) {
@@ -185,18 +291,20 @@ export default function App() {
     }
   };
 
-  // Handle template selection from New Project Modal
   const handleSelectTemplate = (templateKey) => {
     if (templateKey === 'blank') {
       store.updateComponents([], 'Blank Canvas');
-      store.setProjectName('Untitled Project');
       store.setSelectedId(null);
       return;
     }
 
     const tpl = STARTER_TEMPLATES[templateKey];
     if (tpl) {
-      store.loadTemplate(tpl);
+      store.updateComponents(tpl.components, `Template: ${tpl.name}`);
+      const pal = getPaletteById(tpl.paletteName) || PRESET_PALETTES[2];
+      store.setPalette(pal);
+      store.setProjectName(tpl.name);
+      store.setSelectedId(null);
     }
   };
 
@@ -219,6 +327,9 @@ export default function App() {
         onOpenSettingsModal={() => setIsSettingsModalOpen(true)}
         onOpenVersionModal={() => setIsVersionModalOpen(true)}
         onOpenNewProjectModal={() => setIsNewProjectModalOpen(true)}
+        onNavigateToDashboard={() => setCurrentView('dashboard')}
+        user={user}
+        onLogout={logout}
       />
 
       {/* Main Workspace (3-Panel Grid) */}
@@ -309,5 +420,13 @@ export default function App() {
         onSelectTemplate={handleSelectTemplate}
       />
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <MainStudioApp />
+    </AuthProvider>
   );
 }

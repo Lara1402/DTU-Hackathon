@@ -1,41 +1,25 @@
 import React, { useState } from 'react';
-import { Palette, Plus, Trash2, ExternalLink, Image as ImageIcon } from 'lucide-react';
+import { Palette, Plus, Trash2, Link as LinkIcon, Image as ImageIcon } from 'lucide-react';
 
 export default function MoodBoard({ moodBoard, onAddItem, onRemoveItem }) {
   const [isOpen, setIsOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newNotes, setNewNotes] = useState('');
   const [newUrl, setNewUrl] = useState('');
-
-  const sampleInspirations = [
-    {
-      title: 'Minimal Geometric Cyber',
-      notes: 'Monochrome dark, sharp angles, vibrant accent lines',
-      url: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=400&q=80'
-    },
-    {
-      title: 'Nordic Clean Studio',
-      notes: 'Light mode, airy whitespace, sans-serif high contrast',
-      url: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=400&q=80'
-    },
-    {
-      title: 'Neon Gradient Pulse',
-      notes: 'Vibrant indigo & magenta glows, frosted glass cards',
-      url: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=400&q=80'
-    }
-  ];
+  const [showAddForm, setShowAddForm] = useState(false);
 
   const handleAddCustom = (e) => {
     e.preventDefault();
     if (!newUrl.trim()) return;
     onAddItem({
       title: newTitle.trim() || 'Visual Reference',
-      notes: newNotes.trim() || 'Design inspiration',
+      notes: newNotes.trim() || '',
       url: newUrl.trim()
     });
     setNewTitle('');
     setNewNotes('');
     setNewUrl('');
+    setShowAddForm(false);
   };
 
   return (
@@ -73,89 +57,133 @@ export default function MoodBoard({ moodBoard, onAddItem, onRemoveItem }) {
       {isOpen && (
         <div style={{ padding: '12px 20px 16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <p style={{ fontSize: '0.75rem', color: 'var(--studio-text-dim)', lineHeight: 1.4 }}>
-            Mood board references act as visual guidance for Gemma 4 layout synthesis without polluting page content.
+            Attach reference image URLs and notes to guide Gemma 4 layout synthesis without polluting your website content.
           </p>
 
-          {/* Existing Mood Board Items */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
-            {moodBoard.map((item) => (
-              <div
-                key={item.id}
-                style={{
-                  position: 'relative',
-                  borderRadius: 'var(--studio-radius-sm)',
-                  overflow: 'hidden',
-                  border: '1px solid var(--studio-border)',
-                  background: 'var(--studio-surface)'
-                }}
-              >
-                <img
-                  src={item.url}
-                  alt={item.title}
-                  style={{ width: '100%', height: '80px', objectFit: 'cover' }}
-                />
-                <button
-                  type="button"
-                  onClick={() => onRemoveItem(item.id)}
-                  title="Remove from mood board"
-                  style={{
-                    position: 'absolute',
-                    top: '4px',
-                    right: '4px',
-                    background: 'rgba(0,0,0,0.6)',
-                    border: 'none',
-                    color: '#ffffff',
-                    width: '20px',
-                    height: '20px',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                >
-                  <Trash2 size={11} />
-                </button>
-                <div style={{ padding: '6px 8px' }}>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--studio-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {item.title}
-                  </div>
-                  {item.notes && (
-                    <div style={{ fontSize: '0.68rem', color: 'var(--studio-text-dim)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {item.notes}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Quick preset inspirations */}
-          <div>
-            <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--studio-text-dim)', marginBottom: '6px' }}>
-              Add Curated Inspiration:
+          {/* Mood Board Items */}
+          {moodBoard.length === 0 ? (
+            <div style={{
+              textAlign: 'center',
+              padding: '16px',
+              border: '1px dashed var(--studio-border)',
+              borderRadius: 'var(--studio-radius-sm)',
+              color: 'var(--studio-text-dim)',
+              fontSize: '0.75rem'
+            }}>
+              No inspiration references attached yet.
             </div>
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-              {sampleInspirations.map((sample, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => onAddItem(sample)}
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+              {moodBoard.map((item) => (
+                <div
+                  key={item.id}
                   style={{
-                    background: 'rgba(255,255,255,0.04)',
+                    position: 'relative',
+                    borderRadius: 'var(--studio-radius-sm)',
+                    overflow: 'hidden',
                     border: '1px solid var(--studio-border)',
-                    color: 'var(--studio-text-muted)',
-                    fontSize: '0.7rem',
-                    padding: '4px 8px',
-                    borderRadius: '4px',
-                    cursor: 'pointer'
+                    background: 'var(--studio-surface)'
                   }}
                 >
-                  + {sample.title}
-                </button>
+                  <img
+                    src={item.url}
+                    alt={item.title}
+                    style={{ width: '100%', height: '80px', objectFit: 'cover' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => onRemoveItem(item.id)}
+                    title="Remove reference"
+                    style={{
+                      position: 'absolute',
+                      top: '4px',
+                      right: '4px',
+                      background: 'rgba(0,0,0,0.65)',
+                      border: 'none',
+                      color: '#ffffff',
+                      width: '20px',
+                      height: '20px',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    <Trash2 size={11} />
+                  </button>
+                  <div style={{ padding: '6px 8px' }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--studio-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {item.title}
+                    </div>
+                    {item.notes && (
+                      <div style={{ fontSize: '0.68rem', color: 'var(--studio-text-dim)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {item.notes}
+                      </div>
+                    )}
+                  </div>
+                </div>
               ))}
             </div>
-          </div>
+          )}
+
+          {/* Add Reference Form */}
+          {showAddForm ? (
+            <form onSubmit={handleAddCustom} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <input
+                type="text"
+                placeholder="Image URL (https://...)"
+                className="studio-prop-input"
+                style={{ fontSize: '0.75rem', padding: '6px 10px' }}
+                value={newUrl}
+                onChange={(e) => setNewUrl(e.target.value)}
+                required
+              />
+              <input
+                type="text"
+                placeholder="Title or Label (e.g. Minimal Hero)"
+                className="studio-prop-input"
+                style={{ fontSize: '0.75rem', padding: '6px 10px' }}
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+              />
+              <input
+                type="text"
+                placeholder="Inspiration Notes (optional)"
+                className="studio-prop-input"
+                style={{ fontSize: '0.75rem', padding: '6px 10px' }}
+                value={newNotes}
+                onChange={(e) => setNewNotes(e.target.value)}
+              />
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="submit"
+                  className="studio-btn-primary"
+                  style={{ flex: 1, padding: '6px 12px', fontSize: '0.75rem', justifyContent: 'center' }}
+                >
+                  Save Reference
+                </button>
+                <button
+                  type="button"
+                  className="studio-btn-secondary"
+                  style={{ padding: '6px 12px', fontSize: '0.75rem' }}
+                  onClick={() => setShowAddForm(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          ) : (
+            <button
+              type="button"
+              className="studio-btn-secondary"
+              style={{ padding: '6px 12px', fontSize: '0.75rem', justifyContent: 'center' }}
+              onClick={() => setShowAddForm(true)}
+            >
+              <Plus size={13} />
+              <span>Add Inspiration Reference</span>
+            </button>
+          )}
         </div>
       )}
     </div>

@@ -1,201 +1,37 @@
 /**
- * Global Project Store for MoodUI Studio
- * Handles AST manipulation, undo/redo, theme palette, direct visual editing,
- * version snapshots, diagnostics, and persistent local drafts.
+ * User-Scoped Project Store for MoodUI Studio
+ * Clean, fresh state without any pre-existing demo content.
+ * Isolates local and remote storage per authenticated user.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { PRESET_PALETTES, getPaletteById } from './palettes.js';
 
-const STORAGE_KEY = 'moodui_studio_current_project';
+export function useProject(user = null, token = null) {
+  const userId = user?.id || 'guest';
+  const STORAGE_KEY = `moodui_user_${userId}_active_project`;
 
-const INITIAL_PORTFOLIO = [
-  {
-    id: 'nav-1',
-    type: 'navbar',
-    props: {
-      brand: 'Alex Rivers',
-      brandRole: 'Full-Stack Developer',
-      links: [
-        { label: 'About', href: '#about' },
-        { label: 'Projects', href: '#projects' },
-        { label: 'Experience', href: '#experience' },
-        { label: 'Contact', href: '#contact' }
-      ],
-      ctaLabel: 'Get in Touch',
-      ctaHref: '#contact',
-      isSticky: true
-    },
-    style: { padding: '16px 32px' }
-  },
-  {
-    id: 'hero-1',
-    type: 'hero',
-    props: {
-      badge: 'Available for New Opportunities',
-      title: 'Building digital experiences with modern web technologies',
-      subtitle: 'Hi, I am Alex. I craft resilient frontend interfaces, scalable Node services, and delight users with micro-interactions and performance-first design.',
-      primaryBtnText: 'View Projects',
-      primaryBtnHref: '#projects',
-      secondaryBtnText: 'Download CV',
-      secondaryBtnHref: '#cv',
-      imageUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=800&q=80',
-      imageAlt: 'Alex Rivers portrait'
-    },
-    style: { padding: '80px 24px' }
-  },
-  {
-    id: 'features-1',
-    type: 'features',
-    props: {
-      badge: 'Core Expertise',
-      title: 'What I bring to the table',
-      subtitle: 'From pixel-perfect interactive UI to robust backend services and DevOps automation.',
-      items: [
-        {
-          icon: 'Code2',
-          title: 'Frontend Architecture',
-          description: 'Modern React, TypeScript, state management, and accessible component libraries.'
-        },
-        {
-          icon: 'Cpu',
-          title: 'AI & LLM Integration',
-          description: 'Integrating Google Gemma, Gemini models, agent workflows, and prompt engineering.'
-        },
-        {
-          icon: 'Sparkles',
-          title: 'Design Systems & Tokens',
-          description: 'Creating cohesive tokens, theme switches, and responsive layouts that look stunning.'
-        }
-      ]
-    },
-    style: { padding: '64px 24px' }
-  },
-  {
-    id: 'projects-1',
-    type: 'card-grid',
-    props: {
-      badge: 'Featured Works',
-      title: 'Recent Projects',
-      subtitle: 'A selection of products and tools engineered from concept to launch.',
-      columns: 3,
-      cards: [
-        {
-          id: 'card-p1',
-          title: 'Pulse Analytics',
-          badge: 'Next.js & TypeScript',
-          description: 'Real-time telemetry dashboard visualizing user interactions with sub-100ms latency.',
-          imageUrl: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=600&q=80',
-          linkText: 'View Demo',
-          linkHref: '#'
-        },
-        {
-          id: 'card-p2',
-          title: 'Aura Design System',
-          badge: 'React & Tokens',
-          description: 'Accessible UI kit with container queries, dynamic theme tokens, and 40+ components.',
-          imageUrl: 'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=600&q=80',
-          linkText: 'GitHub Repo',
-          linkHref: '#'
-        },
-        {
-          id: 'card-p3',
-          title: 'Cipher Cloud Agent',
-          badge: 'Gemma & Python',
-          description: 'Intelligent security monitor diagnosing misconfigurations and generating automated fixes.',
-          imageUrl: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=600&q=80',
-          linkText: 'Case Study',
-          linkHref: '#'
-        }
-      ]
-    },
-    style: { padding: '64px 24px' }
-  },
-  {
-    id: 'footer-1',
-    type: 'footer',
-    props: {
-      brand: 'Alex Rivers',
-      copyright: '© 2026 Alex Rivers. Built with MoodUI Studio.',
-      links: [
-        { label: 'GitHub', href: 'https://github.com' },
-        { label: 'LinkedIn', href: 'https://linkedin.com' },
-        { label: 'Twitter', href: 'https://twitter.com' }
-      ]
-    },
-    style: { padding: '32px 24px' }
-  }
-];
-
-export function useProject() {
-  // Load initial from localStorage if available
-  const getInitialState = () => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed && Array.isArray(parsed.components) && parsed.components.length > 0) {
-          return {
-            name: parsed.name || 'Developer Portfolio',
-            palette: parsed.palette || PRESET_PALETTES[2],
-            components: parsed.components,
-            versions: parsed.versions || []
-          };
-        }
-      }
-    } catch (e) {
-      console.warn('Could not read from localStorage:', e);
-    }
-    return {
-      name: 'Developer Portfolio',
-      palette: PRESET_PALETTES[2], // Dark professional
-      components: INITIAL_PORTFOLIO,
-      versions: [
-        {
-          id: 'v-init',
-          name: 'Initial Starter State',
-          timestamp: new Date().toISOString(),
-          components: INITIAL_PORTFOLIO
-        }
-      ]
-    };
-  };
-
-  const initial = getInitialState();
-
-  const [projectName, setProjectName] = useState(initial.name);
-  const [palette, setPaletteState] = useState(initial.palette);
-  const [components, setComponentsState] = useState(initial.components);
-  const [versions, setVersions] = useState(initial.versions);
+  // Start with clean slate: empty components, no demo projects
+  const [projectId, setProjectId] = useState(null);
+  const [projectName, setProjectName] = useState('Untitled Project');
+  const [palette, setPaletteState] = useState(PRESET_PALETTES[2]); // Dark Professional
+  const [components, setComponentsState] = useState([]); // CLEAN BLANK CANVAS!
+  const [versions, setVersions] = useState([]);
 
   // Selection & UI controls
   const [selectedId, setSelectedId] = useState(null);
-  const [viewport, setViewport] = useState('desktop'); // desktop | tablet | mobile
+  const [viewport, setViewport] = useState('desktop');
   const [zoom, setZoom] = useState(1);
-  const [activeTab, setActiveTab] = useState('design'); // design | properties | debug | code
+  const [activeTab, setActiveTab] = useState('design');
   const [saveStatus, setSaveStatus] = useState('saved');
 
   // History stack for Undo / Redo
   const [past, setPast] = useState([]);
   const [future, setFuture] = useState([]);
 
-  // Multimodal conversation & moodboard
-  const [messages, setMessages] = useState([
-    {
-      id: 'm-welcome',
-      sender: 'assistant',
-      text: 'Welcome to MoodUI Studio! Describe your interface idea, upload design references or a mood board, or pick a color palette to begin.',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    }
-  ]);
-  const [moodBoard, setMoodBoard] = useState([
-    {
-      id: 'mb-1',
-      title: 'Modern Minimal Architecture',
-      notes: 'Clean lines, dark background, electric blue accents',
-      url: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=400&q=80'
-    }
-  ]);
+  // Clean conversational stream & mood board (NO demo data)
+  const [messages, setMessages] = useState([]);
+  const [moodBoard, setMoodBoard] = useState([]);
 
   // Debugging & Repairs
   const [activeRepair, setActiveRepair] = useState(null);
@@ -210,17 +46,20 @@ export function useProject() {
     localMode: false
   });
 
-  // Debounced auto-save to localStorage
+  // Debounced auto-save to user-namespaced local storage and backend
   const saveTimeoutRef = useRef(null);
 
-  const persist = useCallback((name, pal, comps, vers) => {
+  const persist = useCallback((id, name, pal, comps, vers) => {
     setSaveStatus('saving');
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    saveTimeoutRef.current = setTimeout(() => {
+
+    saveTimeoutRef.current = setTimeout(async () => {
+      // 1. User-isolated LocalStorage
       try {
         localStorage.setItem(
           STORAGE_KEY,
           JSON.stringify({
+            id,
             name,
             palette: pal,
             components: comps,
@@ -233,16 +72,74 @@ export function useProject() {
         console.error('Failed to save to localStorage:', err);
         setSaveStatus('unsaved');
       }
-    }, 500);
+
+      // 2. Synchronize to Backend if user is authenticated and project exists
+      if (token && id) {
+        try {
+          await fetch(`/api/projects/${id}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              name,
+              palette: pal,
+              components: comps,
+              versions: vers
+            })
+          });
+        } catch (e) {
+          console.warn('Backend sync deferred:', e);
+        }
+      }
+    }, 600);
+  }, [STORAGE_KEY, token]);
+
+  // Load a specific project into the workspace
+  const loadProject = useCallback((project) => {
+    setProjectId(project.id);
+    setProjectName(project.name || 'Untitled Project');
+    setPaletteState(project.palette || PRESET_PALETTES[2]);
+    setComponentsState(Array.isArray(project.components) ? project.components : []);
+    setVersions(Array.isArray(project.versions) ? project.versions : []);
+    setSelectedId(null);
+    setPast([]);
+    setFuture([]);
+    setMessages([]);
+    setMoodBoard([]);
+    setActiveRepair(null);
+    setDiagnosticsReport(null);
+    setSaveStatus('saved');
   }, []);
 
-  // Update components with undo history tracking
+  // Create clean new project
+  const createNewProject = useCallback((name = 'Untitled Project', initialComponents = []) => {
+    const newId = `proj_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`;
+    setProjectId(newId);
+    setProjectName(name);
+    setPaletteState(PRESET_PALETTES[2]);
+    setComponentsState(initialComponents);
+    setVersions([]);
+    setSelectedId(null);
+    setPast([]);
+    setFuture([]);
+    setMessages([]);
+    setMoodBoard([]);
+    setActiveRepair(null);
+    setDiagnosticsReport(null);
+    setSaveStatus('saved');
+    persist(newId, name, PRESET_PALETTES[2], initialComponents, []);
+    return newId;
+  }, [persist]);
+
+  // Update components with history tracking
   const updateComponents = useCallback((newComponents, actionLabel = 'Edit') => {
     setPast(prev => [...prev.slice(-20), components]);
     setFuture([]);
     setComponentsState(newComponents);
-    persist(projectName, palette, newComponents, versions);
-  }, [components, projectName, palette, versions, persist]);
+    persist(projectId, projectName, palette, newComponents, versions);
+  }, [components, projectId, projectName, palette, versions, persist]);
 
   // Direct element prop / style updates
   const updateComponent = useCallback((id, updates) => {
@@ -259,10 +156,10 @@ export function useProject() {
       });
       setPast(history => [...history.slice(-20), prev]);
       setFuture([]);
-      persist(projectName, palette, next, versions);
+      persist(projectId, projectName, palette, next, versions);
       return next;
     });
-  }, [projectName, palette, versions, persist]);
+  }, [projectId, projectName, palette, versions, persist]);
 
   // Delete component
   const deleteComponent = useCallback((id) => {
@@ -271,10 +168,10 @@ export function useProject() {
       setPast(history => [...history.slice(-20), prev]);
       setFuture([]);
       if (selectedId === id) setSelectedId(null);
-      persist(projectName, palette, next, versions);
+      persist(projectId, projectName, palette, next, versions);
       return next;
     });
-  }, [selectedId, projectName, palette, versions, persist]);
+  }, [selectedId, projectId, projectName, palette, versions, persist]);
 
   // Duplicate component
   const duplicateComponent = useCallback((id) => {
@@ -291,10 +188,10 @@ export function useProject() {
       setPast(history => [...history.slice(-20), prev]);
       setFuture([]);
       setSelectedId(clone.id);
-      persist(projectName, palette, next, versions);
+      persist(projectId, projectName, palette, next, versions);
       return next;
     });
-  }, [projectName, palette, versions, persist]);
+  }, [projectId, projectName, palette, versions, persist]);
 
   // Reorder component
   const moveComponent = useCallback((id, direction) => {
@@ -310,25 +207,25 @@ export function useProject() {
 
       setPast(history => [...history.slice(-20), prev]);
       setFuture([]);
-      persist(projectName, palette, next, versions);
+      persist(projectId, projectName, palette, next, versions);
       return next;
     });
-  }, [projectName, palette, versions, persist]);
+  }, [projectId, projectName, palette, versions, persist]);
 
-  // Palette change (no AI call needed)
+  // Palette change (no AI request needed)
   const setPalette = useCallback((newPalette) => {
     setPaletteState(newPalette);
-    persist(projectName, newPalette, components, versions);
-  }, [projectName, components, versions, persist]);
+    persist(projectId, projectName, newPalette, components, versions);
+  }, [projectId, projectName, components, versions, persist]);
 
   // Custom color updater
   const updateCustomColor = useCallback((key, value) => {
     setPaletteState(prev => {
       const updated = { ...prev, [key]: value, name: 'Custom Palette' };
-      persist(projectName, updated, components, versions);
+      persist(projectId, projectName, updated, components, versions);
       return updated;
     });
-  }, [projectName, components, versions, persist]);
+  }, [projectId, projectName, components, versions, persist]);
 
   // Undo / Redo
   const undo = useCallback(() => {
@@ -338,8 +235,8 @@ export function useProject() {
     setFuture(f => [components, ...f]);
     setPast(newPast);
     setComponentsState(previous);
-    persist(projectName, palette, previous, versions);
-  }, [past, components, projectName, palette, versions, persist]);
+    persist(projectId, projectName, palette, previous, versions);
+  }, [past, components, projectId, projectName, palette, versions, persist]);
 
   const redo = useCallback(() => {
     if (future.length === 0) return;
@@ -348,8 +245,8 @@ export function useProject() {
     setPast(p => [...p, components]);
     setFuture(newFuture);
     setComponentsState(next);
-    persist(projectName, palette, next, versions);
-  }, [future, components, projectName, palette, versions, persist]);
+    persist(projectId, projectName, palette, next, versions);
+  }, [future, components, projectId, projectName, palette, versions, persist]);
 
   // Named version snapshots
   const saveSnapshot = useCallback((name) => {
@@ -362,8 +259,8 @@ export function useProject() {
     };
     const nextVersions = [newVersion, ...versions];
     setVersions(nextVersions);
-    persist(projectName, palette, components, nextVersions);
-  }, [components, palette, versions, projectName, persist]);
+    persist(projectId, projectName, palette, components, nextVersions);
+  }, [components, palette, versions, projectId, projectName, persist]);
 
   const restoreVersion = useCallback((versionId) => {
     const ver = versions.find(v => v.id === versionId);
@@ -372,8 +269,8 @@ export function useProject() {
     setFuture([]);
     setComponentsState(ver.components);
     if (ver.palette) setPaletteState(ver.palette);
-    persist(projectName, ver.palette || palette, ver.components, versions);
-  }, [versions, components, projectName, palette, persist]);
+    persist(projectId, projectName, ver.palette || palette, ver.components, versions);
+  }, [versions, components, projectId, projectName, palette, persist]);
 
   // Conversation messaging
   const addMessage = useCallback((msg) => {
@@ -387,7 +284,7 @@ export function useProject() {
     ]);
   }, []);
 
-  // Mood board management
+  // Mood board references
   const addMoodBoardItem = useCallback((item) => {
     setMoodBoard(prev => [
       ...prev,
@@ -437,23 +334,12 @@ export function useProject() {
     setLastAppliedRepair(null);
   }, [lastAppliedRepair, updateComponents]);
 
-  // Load starter templates
-  const loadTemplate = useCallback((templateData) => {
-    setPast(p => [...p, components]);
-    setFuture([]);
-    setComponentsState(templateData.components);
-    const pal = getPaletteById(templateData.paletteName) || PRESET_PALETTES[2];
-    setPaletteState(pal);
-    setProjectName(templateData.name);
-    setSelectedId(null);
-    persist(templateData.name, pal, templateData.components, versions);
-  }, [components, versions, persist]);
-
   return {
+    projectId,
     projectName,
     setProjectName: (name) => {
       setProjectName(name);
-      persist(name, palette, components, versions);
+      persist(projectId, name, palette, components, versions);
     },
     palette,
     setPalette,
@@ -497,6 +383,7 @@ export function useProject() {
     setIsDiagnosing,
     settings,
     setSettings,
-    loadTemplate
+    loadProject,
+    createNewProject
   };
 }

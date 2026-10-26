@@ -3,7 +3,7 @@ import { Settings, X, Check, Server, Key, Cpu, ShieldCheck, AlertCircle } from '
 
 export default function SettingsModal({ isOpen, onClose, settings, onSaveSettings }) {
   const [apiKey, setApiKey] = useState(settings.apiKey || '');
-  const [model, setModel] = useState(settings.model || 'gemini-3.8-flash');
+  const [model, setModel] = useState(settings.model || 'gemma-4-31b-it');
   const [localMode, setLocalMode] = useState(settings.localMode || false);
   const [healthStatus, setHealthStatus] = useState(null);
   const [isCheckingHealth, setIsCheckingHealth] = useState(false);
@@ -132,12 +132,11 @@ export default function SettingsModal({ isOpen, onClose, settings, onSaveSetting
               value={model}
               onChange={(e) => setModel(e.target.value)}
             >
-              <option value="gemini-3.8-flash">⚡ Gemini 3.8 Flash (Recommended)</option>
-              <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
-              <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+              <option value="gemma-4-31b-it">🚀 Gemma 4 31B Instruct (Recommended)</option>
+              <option value="gemma-4-26b-a4b-it">Gemma 4 26B A4B Instruct</option>
+              <option value="gemini-2.5-flash">⚡ Gemini 2.5 Flash</option>
+              <option value="gemini-3.8-flash">Gemini 3.8 Flash</option>
               <option value="gemini-2.5-pro">🧠 Gemini 2.5 Pro</option>
-              <option value="gemma-3-27b-it">Gemma 3 27B Instruct</option>
-              <option value="gemma-3-12b-it">Gemma 3 12B Instruct</option>
             </select>
           </div>
 

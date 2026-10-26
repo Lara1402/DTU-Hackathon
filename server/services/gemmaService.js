@@ -7,7 +7,7 @@
 import { validateComponentTree, validatePatch } from '../schema/validator.js';
 import { STARTER_TEMPLATES } from '../schema/defaultTemplates.js';
 
-const DEFAULT_MODEL = 'gemini-3.8-flash';
+const DEFAULT_MODEL = 'gemma-4-31b-it';
 
 export class GemmaService {
   constructor() {
@@ -76,7 +76,9 @@ export class GemmaService {
 
     const data = await response.json();
     const candidate = data.candidates?.[0];
-    const textOutput = candidate?.content?.parts?.[0]?.text;
+    const parts = candidate?.content?.parts || [];
+    const contentPart = parts.find(p => !p.thought) || parts[parts.length - 1];
+    const textOutput = contentPart?.text;
 
     if (!textOutput) {
       throw new Error('Google AI API returned empty content');
